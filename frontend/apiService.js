@@ -15,7 +15,7 @@ const initAPI = async () => {
       headers: {
         'Content-Type': 'application/json'
       },
-      timeout: 10000 // Add timeout to avoid long waits on network issues
+      timeout: 300000 // 5-minute timeout to allow longer server processing
     });
 
     // Add auth token to requests if available
