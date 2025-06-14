@@ -324,16 +324,16 @@ async function loadUserData() {
         document.getElementById("app-container").style.display = "flex";
 
         // If titles are loaded, start polling for the first one for demonstration
-        if (titles && titles.length > 0) {
-            const firstTitleId = titles[0].id;
-            const defaultQuantity = 5;
-            console.log(
-                `LUD: Automatically starting polling for title ID: ${firstTitleId}, quantity: ${defaultQuantity}`
-            );
-            pollThumbnailStatus(firstTitleId, defaultQuantity);
-        } else {
-            console.log("LUD: No titles found, not starting auto-polling.");
-        }
+        // if (titles && titles.length > 0) {
+        //     const firstTitleId = titles[0].id;
+        //     const defaultQuantity = 5;
+        //     console.log(
+        //         `LUD: Automatically starting polling for title ID: ${firstTitleId}, quantity: ${defaultQuantity}`
+        //     );
+        //     pollThumbnailStatus(firstTitleId, defaultQuantity);
+        // } else {
+        //     console.log("LUD: No titles found, not starting auto-polling.");
+        // }
         console.log("LUD: User data loading complete.");
     } catch (error) {
         console.error("Error loading user data (LUD):", error);
@@ -486,7 +486,8 @@ function setupEventListeners() {
             return;
         }
 
-        showLoading(false);
+        generateBtn.disabled = true;
+        moreThumbnailsBtn.disabled = true;
 
         try {
             const instructions = customInstructions.value.trim();
@@ -525,55 +526,44 @@ function setupEventListeners() {
                 }
             }
 
-            // Generate thumbnails
-            console.log(
-                "Generating thumbnails for title ID:",
-                currentTitle.id,
-                "Quantity:",
-                quantity
-            );
-            const generateResponse = await generatePaintings(
-                currentTitle.id,
-                quantity
-            );
-            console.log("Generate thumbnails response:", generateResponse.data);
+            // Clear existing thumbnails and show placeholders immediately
+            thumbnailsGrid.innerHTML = "";
+            thumbnailsEmptyState.style.display = "none";
 
-            showLoading(false);
+            // Create placeholders before starting generation
+            await generateServerThumbnails(currentTitle, currentTitle.references || [], quantity, false);
 
-            // Refresh titles list after starting generation/polling
+            // Start the actual generation process
+            console.log("Starting painting generation for title ID:", currentTitle.id, "Quantity:", quantity);
+            const generateResponse = await generatePaintings(currentTitle.id, quantity);
+            console.log("Generate paintings response:", generateResponse.data);
+
+            generateBtn.disabled = false;
+            moreThumbnailsBtn.disabled = false;
+
+            // Refresh titles list
             console.log("Refreshing titles list");
             const titlesResponse = await getTitles();
             titles = titlesResponse.data.titles;
             renderTitlesList();
 
-            // No longer call loadThumbnails here immediately
-            // console.log("Loading thumbnails");
-            await loadThumbnails(currentTitle.id);
-
-            // Start polling for thumbnail status instead of loading immediately
+            // Start polling for status updates
             pollThumbnailStatus(currentTitle.id, quantity);
+
         } catch (error) {
-            console.error("Error generating thumbnails:", error);
-            showLoading(false);
+            console.error("Error generating paintings:", error);
 
             // More detailed error information
             if (error.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
                 console.error("Server responded with error:", error.response.status);
                 console.error("Error data:", error.response.data);
                 alert(
-                    `Server error (${error.response.status}): ${error.response.data?.error || "Unknown error"
-                    }`
+                    `Server error (${error.response.status}): ${error.response.data?.error || "Unknown error"}`
                 );
             } else if (error.request) {
-                // The request was made but no response was received
                 console.error("No response received:", error.request);
-                alert(
-                    "No response from server. Please check if the backend is running."
-                );
+                alert("No response from server. Please check if the backend is running.");
             } else {
-                // Something happened in setting up the request that triggered an Error
                 console.error("Request setup error:", error.message);
                 alert(`Error: ${error.message}`);
             }
@@ -584,25 +574,33 @@ function setupEventListeners() {
     moreThumbnailsBtn.addEventListener("click", async () => {
         if (!currentTitle) return;
 
-        showLoading(true);
+        moreThumbnailsBtn.disabled = true;
+        generateBtn.disabled = true;
 
         try {
             const quantity = parseInt(quantitySelect.value) || 3;
 
+            // Create placeholders for additional paintings first
+            // Pass isAdditional as true to preserve existing thumbnails
+            await generateServerThumbnails(
+                currentTitle,
+                currentTitle.references || [],
+                quantity,
+                true
+            );
+
             // Generate more thumbnails
-            await generatePaintings(currentTitle.id, quantity);
+            const generateResponse = await generatePaintings(currentTitle.id, quantity);
+            console.log("Generate more paintings response:", generateResponse.data);
 
-            showLoading(false);
-
-            // Get the updated thumbnails
-            await loadThumbnails(currentTitle.id);
-
-            // Start polling for thumbnail status instead of loading immediately
+            // Start polling for the new thumbnails
             pollThumbnailStatus(currentTitle.id, quantity);
         } catch (error) {
-            showLoading(false);
-            console.error("Error generating more thumbnails:", error);
-            alert("Failed to generate additional thumbnails. Please try again.");
+            console.error("Error generating more paintings:", error);
+            alert("Failed to generate additional paintings. Please try again.");
+        } finally {
+            moreThumbnailsBtn.disabled = false;
+            generateBtn.disabled = false;
         }
     });
 
@@ -883,6 +881,8 @@ async function generateServerThumbnails(
     quantity,
     isAdditional
 ) {
+    console.log("generateServerThumbnails :: ", titleObj, references, quantity, isAdditional);
+
     // Show progress section
     progressSection.style.display = "block";
     thumbnailsEmptyState.style.display = "none";
@@ -1058,23 +1058,22 @@ function renderThumbnail(thumbnailData, index) {
     switch (thumbnailData.status) {
         case "pending":
             statusIndicator.innerHTML = `
-          <div class="status-icon pending">⏳</div>
-          <div class="status-text">Waiting to start...</div>
-        `;
+                <div class="status-icon pending">⏳</div>
+                <div class="status-text">Waiting to start...</div>
+            `;
             break;
         case "processing":
             statusIndicator.innerHTML = `
-          <div class="status-icon processing">🔄</div>
-          <div class="status-text">Generating image...</div>
-        `;
+                <div class="status-icon processing">🔄</div>
+                <div class="status-text">Generating image...</div>
+            `;
             break;
         case "failed":
             statusIndicator.innerHTML = `
-          <div class="status-icon error">❌</div>
-          <div class="status-text">${thumbnailData.error_message || "Generation failed"
-                }</div>
-          <button class="action-btn retry-btn">Try Again</button>
-        `;
+                <div class="status-icon error">❌</div>
+                <div class="status-text">${thumbnailData.error_message || "Generation failed"}</div>
+                <button class="action-btn retry-btn">Try Again</button>
+            `;
             break;
         case "completed":
             // Show the actual image
@@ -1285,7 +1284,7 @@ function renderTitlesList() {
 
 // Load a title when clicked from the sidebar
 async function loadTitle(titleItem) {
-    showLoading(true);
+    // showLoading(true);
 
     try {
         const titleId = titleItem.id;
@@ -1385,7 +1384,7 @@ async function loadTitle(titleItem) {
         console.error("Error loading title:", error);
         alert(`Failed to load title data: ${error.message}. Please try again.`);
     } finally {
-        showLoading(false);
+        // showLoading(false);
     }
 }
 
@@ -1415,6 +1414,11 @@ function renderSavedThumbnails(title) {
         return;
     }
 
+    // Count in-progress thumbnails
+    const inProgressCount = validThumbnails.filter(
+        thumb => thumb.status === "pending" || thumb.status === "processing"
+    ).length;
+
     validThumbnails.forEach((thumbnail, index) => {
         try {
             const thumbContainer = document.createElement("div");
@@ -1427,6 +1431,12 @@ function renderSavedThumbnails(title) {
             console.error(`Error rendering thumbnail at index ${index}:`, error);
         }
     });
+
+    // If there are in-progress thumbnails, start polling
+    if (inProgressCount > 0 && title.id) {
+        console.log(`Found ${inProgressCount} in-progress thumbnails, resuming polling...`);
+        pollThumbnailStatus(title.id, inProgressCount);
+    }
 }
 
 // Clear main content for a new title
@@ -1505,107 +1515,96 @@ async function loadThumbnails(titleId) {
 
 // Poll for thumbnail generation status
 async function pollThumbnailStatus(titleId, expectedQuantity, attempt = 0) {
-    console.log(`[Poll #${attempt + 1}] Polling status for title ${titleId}`);
+    console.log(`[Poll #${attempt + 1}] Entered pollThumbnailStatus for title ${titleId}`);
     const maxAttempts = 40; // Poll for up to 2 minutes (40 * 3s)
     const pollInterval = 3000; // Poll every 3 seconds
 
     if (attempt >= maxAttempts) {
         console.error(`[Poll #${attempt + 1}] Polling timed out.`);
-        alert(
-            "Thumbnail generation is taking longer than expected. Please check back later."
-        );
+        alert('Thumbnail generation is taking longer than expected. Please check back later.');
         showLoading(false);
+        // Optionally load whatever is available
         await loadThumbnails(titleId);
         return;
     }
 
     try {
+        console.log(`[Poll #${attempt + 1}] Before API call to getPaintings`);
+        const startTime = Date.now();
+        // Log the API call details before making it
+        console.log(`[Poll #${attempt + 1}] Making API call to endpoint: /paintings/${titleId}`);
+
         const response = await getPaintings(titleId);
+
+        console.log(`[Poll #${attempt + 1}] API call completed in ${Date.now() - startTime}ms`);
+        // Use the paintings array instead of thumbnails
         const thumbnails = response.data.paintings || [];
-        console.log(
-            `[Poll #${attempt + 1}] Fetched ${thumbnails.length} thumbnails`
-        );
+        console.log(`[Poll #${attempt + 1}] Fetched thumbnails:`, thumbnails);
 
-        // Filter thumbnails for this title
-        const relevantThumbnails = thumbnails.filter((t) => t.title_id === titleId);
+        // Filter only the thumbnails belonging to the current generation batch/title
+        // Assuming they are added sequentially and sorted ASC by creation time
+        const relevantThumbnails = thumbnails.filter(t => t.title_id === titleId);
 
-        // Count statuses
         let completedCount = 0;
         let processingCount = 0;
         let pendingCount = 0;
-        let failedCount = 0;
 
-        // Update each thumbnail's status
+        // Render each thumbnail with its current status
+        // We need to determine the correct index for rendering.
+        // If loadTitle fetches initial thumbnails, we might need to map by ID or rely on the ASC order.
+        // Assuming the index corresponds to the position in the ASC sorted list for this title.
         relevantThumbnails.forEach((thumbnail, index) => {
-            const container = document.getElementById(`thumb-${index}`);
-            if (container) {
+            // Ensure the container exists (it should have been created by generateServerThumbnails)
+            const containerExists = document.getElementById(`thumb-${index}`);
+            if (containerExists) {
                 renderThumbnail(thumbnail, index);
             }
 
-            switch (thumbnail.status) {
-                case "completed":
-                    completedCount++;
-                    break;
-                case "processing":
-                    processingCount++;
-                    break;
-                case "failed":
-                    failedCount++;
-                    break;
-                default:
-                    pendingCount++;
+            if (thumbnail.status === 'completed' || thumbnail.status === 'failed') {
+                completedCount++;
+            } else if (thumbnail.status === 'processing') {
+                processingCount++;
+            } else {
+                pendingCount++;
             }
         });
 
-        // Update progress UI
         const totalRelevant = relevantThumbnails.length;
-        const progressPercentage =
-            totalRelevant > 0
-                ? ((completedCount + failedCount) / totalRelevant) * 100
-                : 0;
+        console.log(`Status: ${completedCount} completed/failed, ${processingCount} processing, ${pendingCount} pending out of ${totalRelevant}`);
 
-        ai1Status.textContent = "Painting ideas generated";
-        ai1Progress.style.width = "100%";
-
-        ai2Status.textContent = `Generating images... ${completedCount} completed, ${processingCount} in progress, ${failedCount} failed`;
+        // Update progress UI (example)
+        ai1Status.textContent = 'Thumbnail ideas generated.';
+        ai1Progress.style.width = '100%';
+        // Base progress on completed thumbnails relative to the total number fetched so far for this title
+        // or use expectedQuantity if it's more reliable for the current batch
+        const progressPercentage = totalRelevant > 0 ? (completedCount / totalRelevant) * 100 : 0;
+        ai2Status.textContent = `Generating images... ${completedCount}/${totalRelevant} complete`;
         ai2Progress.style.width = `${progressPercentage}%`;
 
-        // Check if all thumbnails are in a final state (completed or failed)
-        if (
-            completedCount + failedCount === totalRelevant &&
-            totalRelevant >= expectedQuantity
-        ) {
-            console.log(`[Poll #${attempt + 1}] All thumbnails processed`);
-            progressSection.style.display = "none";
-            moreThumbnailsSection.style.display = "block";
+        // Check if all *relevant* thumbnails for this title are completed or failed
+        // This check might need refinement if multiple batches can run concurrently
+        if (completedCount === totalRelevant && totalRelevant >= expectedQuantity) {
+            console.log(`[Poll #${attempt + 1}] Condition met. Polling finished.`);
+            progressSection.style.display = 'none';
+            moreThumbnailsSection.style.display = 'block';
             showLoading(false);
-
-            // Show completion message
-            if (failedCount > 0) {
-                alert(
-                    `${failedCount} painting(s) failed to generate. You can retry them individually.`
-                );
-            }
         } else {
-            // Continue polling
-            setTimeout(
-                () => pollThumbnailStatus(titleId, expectedQuantity, attempt + 1),
-                pollInterval
-            );
+            console.log(`[Poll #${attempt + 1}] Condition not met (${completedCount}/${totalRelevant} completed). Scheduling next poll.`);
+            // Not finished, poll again after interval
+            setTimeout(() => pollThumbnailStatus(titleId, expectedQuantity, attempt + 1), pollInterval);
         }
     } catch (error) {
         console.error(`[Poll #${attempt + 1}] Error during polling:`, error);
-
+        // Handle polling error (e.g., show message, maybe stop polling)
+        // If it's a transient network error, could retry a few times before failing
         if (attempt < maxAttempts - 1) {
-            // Retry on error
-            setTimeout(
-                () => pollThumbnailStatus(titleId, expectedQuantity, attempt + 1),
-                pollInterval
-            );
+            console.log(`[Poll #${attempt + 1}] Retrying poll after error.`);
+            setTimeout(() => pollThumbnailStatus(titleId, expectedQuantity, attempt + 1), pollInterval); // Retry on error
         } else {
-            console.error(`[Poll #${attempt + 1}] Max retries reached after error`);
-            alert("Failed to get status updates. Please check back later.");
+            console.error(`[Poll #${attempt + 1}] Max retries reached after error.`);
+            alert('Failed to get thumbnail status updates after multiple attempts. Please check back later.');
             showLoading(false);
+            // Load whatever is available on final error
             await loadThumbnails(titleId);
         }
     }
