@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Image Generator</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" type="text/css" href="/styles.css" />
 </head>
 <body>
     <!-- Login/Register Container -->
-    <div id="login-container" style="display: block;">
+    <section id="login-container" style="display: block;">
         <div class="auth-form-container">
             <h1>AI Image Generator</h1>
             
@@ -46,10 +46,10 @@
                 <p>Already have an account? <a href="#" id="show-login">Login</a></p>
             </form>
         </div>
-    </div>
+    </section>
     
     <!-- App Container (Will be hidden until logged in) -->
-    <div id="app-container" class="app-container" style="display: none;">
+    <section id="app-container" class="app-container" style="display: none;">
         <!-- Loading Overlay -->
         <div id="loading-overlay" class="loading-overlay">
             <div class="spinner"></div>
@@ -57,7 +57,7 @@
         </div>
         
         <!-- Left Sidebar for Titles -->
-        <div class="sidebar">
+        <aside class="sidebar">
             <div class="sidebar-header">
                 <h2>Your Titles</h2>
                 <button id="new-title-btn" class="btn">+ New</button>
@@ -70,10 +70,10 @@
                 <!-- Titles will be populated here -->
                 <div class="empty-state">No titles yet. Create your first one!</div>
             </div>
-        </div>
+        </aside>
 
         <!-- Main Content Area -->
-        <div class="main-content">
+        <main class="main-content">
             <header>
                 <h1>AI Image Generator</h1>
             </header>
@@ -155,11 +155,11 @@
                     <button id="more-thumbnails-btn" class="btn primary-btn">Generate More Paintings</button>
                 </div>
             </div>
-        </div>
-    </div>
+        </main>
+    </section>
 
     <!-- Prompt Details Modal -->
-    <div id="prompt-modal" class="modal">
+    <section id="prompt-modal" class="modal">
         <div class="modal-content">
             <span class="close-modal">&times;</span>
             <div class="modal-header">
@@ -190,8 +190,8 @@
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <script src="app.js" type="module"></script>
+    <script src="/app.js" type="module"></script>
 </body>
 </html> 

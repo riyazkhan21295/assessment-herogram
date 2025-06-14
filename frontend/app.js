@@ -1,10 +1,18 @@
 // Import API service
-import { 
-  login, register, getProfile, 
-  createTitle, getTitles, getTitle, updateTitle, deleteTitle,
-  uploadReference, getReferences, getGlobalReferences, deleteReference,
-  generateThumbnails as generatePaintings, getThumbnails as getPaintings
-} from './frontend/apiService.js';
+import {
+    createTitle,
+    deleteReference,
+    generateThumbnails as generatePaintings,
+    getGlobalReferences,
+    getThumbnails as getPaintings,
+    getProfile,
+    getReferences,
+    getTitle,
+    getTitles,
+    login, register,
+    updateTitle,
+    uploadReference
+} from './apiService.js';
 
 // Simulated Server API
 const ServerAPI = {

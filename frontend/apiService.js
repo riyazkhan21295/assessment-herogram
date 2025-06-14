@@ -6,12 +6,9 @@ let api = null;
 
 // Fetch server configuration and initialize the API
 const initAPI = async () => {
-  try {
-    // Use the current origin to get the config (for local development, we might need to adjust this)
-    const configResponse = await axios.get('/api/config');
-    const { serverIP, apiPort } = configResponse.data;
-    API_URL = `http://${serverIP}:${apiPort}/api`;
-    
+  const init = (serverIp, apiPort) => {
+    API_URL = `http://${serverIp}:${apiPort}/api`;
+
     // Create axios instance with auth token
     api = axios.create({
       baseURL: API_URL,
@@ -29,34 +26,18 @@ const initAPI = async () => {
       }
       return config;
     });
-    
-    return true;
+  };
+
+  try {
+    // Use the current origin to get the config (for local development, we might need to adjust this)
+    const configResponse = await axios.get('/api/config');
+    const { serverIP, apiPort } = configResponse.data;
+
+    init(serverIP, apiPort);
   } catch (error) {
     console.error('Failed to fetch server configuration, using default', error);
-    
-    // Fallback to using the current hostname instead of hardcoded IP
-    const currentHostname = window.location.hostname;
-    API_URL = `http://${currentHostname}:3000/api`;
-    
-    // Create axios instance with auth token
-    api = axios.create({
-      baseURL: API_URL,
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000
-    });
 
-    // Add auth token to requests if available
-    api.interceptors.request.use(config => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    });
-    
-    return false;
+    init(window.location.hostname, 3000);
   }
 };
 
