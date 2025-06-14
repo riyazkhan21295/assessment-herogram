@@ -486,9 +486,6 @@ function setupEventListeners() {
             return;
         }
 
-        generateBtn.disabled = true;
-        moreThumbnailsBtn.disabled = true;
-
         try {
             const instructions = customInstructions.value.trim();
             const quantity = parseInt(quantitySelect.value) || 5;
@@ -531,15 +528,7 @@ function setupEventListeners() {
             thumbnailsEmptyState.style.display = "none";
 
             // Create placeholders before starting generation
-            await generateServerThumbnails(currentTitle, currentTitle.references || [], quantity, false);
-
-            // Start the actual generation process
-            console.log("Starting painting generation for title ID:", currentTitle.id, "Quantity:", quantity);
-            const generateResponse = await generatePaintings(currentTitle.id, quantity);
-            console.log("Generate paintings response:", generateResponse.data);
-
-            generateBtn.disabled = false;
-            moreThumbnailsBtn.disabled = false;
+            generateServerThumbnails(currentTitle, currentTitle.references || [], quantity, false);
 
             // Refresh titles list
             console.log("Refreshing titles list");
@@ -547,9 +536,12 @@ function setupEventListeners() {
             titles = titlesResponse.data.titles;
             renderTitlesList();
 
+            // Start the actual generation process
+            console.log("Starting painting generation for title ID:", currentTitle.id, "Quantity:", quantity);
+            const generateResponse = await generatePaintings(currentTitle.id, quantity);
+            console.log("Generate paintings response:", generateResponse.data);
             // Start polling for status updates
             pollThumbnailStatus(currentTitle.id, quantity);
-
         } catch (error) {
             console.error("Error generating paintings:", error);
 
@@ -574,15 +566,12 @@ function setupEventListeners() {
     moreThumbnailsBtn.addEventListener("click", async () => {
         if (!currentTitle) return;
 
-        moreThumbnailsBtn.disabled = true;
-        generateBtn.disabled = true;
-
         try {
             const quantity = parseInt(quantitySelect.value) || 3;
 
             // Create placeholders for additional paintings first
             // Pass isAdditional as true to preserve existing thumbnails
-            await generateServerThumbnails(
+            generateServerThumbnails(
                 currentTitle,
                 currentTitle.references || [],
                 quantity,
@@ -598,9 +587,6 @@ function setupEventListeners() {
         } catch (error) {
             console.error("Error generating more paintings:", error);
             alert("Failed to generate additional paintings. Please try again.");
-        } finally {
-            moreThumbnailsBtn.disabled = false;
-            generateBtn.disabled = false;
         }
     });
 
@@ -1515,6 +1501,11 @@ async function loadThumbnails(titleId) {
 
 // Poll for thumbnail generation status
 async function pollThumbnailStatus(titleId, expectedQuantity, attempt = 0) {
+    if (currentTitle.id !== titleId) {
+        console.log(`[Poll #${attempt + 1}] Skipping poll for title ${titleId} because it's not the current title`);
+        return;
+    }
+
     console.log(`[Poll #${attempt + 1}] Entered pollThumbnailStatus for title ${titleId}`);
     const maxAttempts = 40; // Poll for up to 2 minutes (40 * 3s)
     const pollInterval = 3000; // Poll every 3 seconds

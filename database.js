@@ -14,7 +14,7 @@ const pool = mysql.createPool({
 async function initializeDatabase() {
   try {
     const connection = await pool.getConnection();
-    
+
     // Create users table
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS users (
@@ -25,7 +25,7 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
     // Create titles table
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS titles (
@@ -37,7 +37,7 @@ async function initializeDatabase() {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
-    
+
     // Create references2 table (changed from references)
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS references2 (
@@ -51,7 +51,7 @@ async function initializeDatabase() {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
-    
+
     // Create ideas table
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS ideas (
@@ -63,7 +63,7 @@ async function initializeDatabase() {
         FOREIGN KEY (title_id) REFERENCES titles(id) ON DELETE CASCADE
       )
     `);
-    
+
     // Create paintings table (renamed from thumbnails)
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS paintings (
@@ -80,7 +80,7 @@ async function initializeDatabase() {
         FOREIGN KEY (idea_id) REFERENCES ideas(id) ON DELETE CASCADE
       )
     `);
-    
+
     connection.release();
     console.log('Database initialized successfully');
   } catch (error) {
