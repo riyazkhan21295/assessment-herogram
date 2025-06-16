@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const { createServer } = require("http");
 const { initializeDatabase } = require("./database");
 const authRoutes = require("./routes/auth");
 const titleRoutes = require("./routes/titles");
@@ -9,7 +10,7 @@ const referenceRoutes = require("./routes/references");
 require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const httpServer = createServer(app);
 
 // Middleware
 app.use(cors());
@@ -29,8 +30,8 @@ app.use(express.static(path.join(__dirname, "frontend")));
 // Config endpoint to provide server information to frontend
 app.get("/api/config", (req, res) => {
   res.json({
-    serverIP: process.env.SERVER_IP,
-    apiPort: process.env.PORT ?? 3000,
+    serverIP: process.env.SERVER_IP || "localhost",
+    apiPort: process.env.PORT || 3000
   });
 });
 
@@ -40,13 +41,20 @@ app.get("*", (req, res) => {
 });
 
 // Initialize database and start server
-initializeDatabase()
-  .then(() => {
-    app.listen(PORT, () => {
+const PORT = process.env.PORT || 3000;
+
+async function startServer() {
+  try {
+    await initializeDatabase();
+    console.log("Database initialized");
+
+    httpServer.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
-  })
-  .catch((err) => {
-    console.error("Failed to start server:", err);
+  } catch (error) {
+    console.error("Failed to start server:", error);
     process.exit(1);
-  });
+  }
+}
+
+startServer();

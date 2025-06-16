@@ -59,25 +59,30 @@ async function initializeDatabase() {
         title_id INT NOT NULL,
         summary TEXT NOT NULL,
         full_prompt TEXT NOT NULL,
+        is_temporary BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (title_id) REFERENCES titles(id) ON DELETE CASCADE
       )
     `);
 
-    // Create paintings table (renamed from thumbnails)
+    // Create paintings table with enhanced status tracking
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS paintings (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title_id INT NOT NULL,
-        idea_id INT NOT NULL,
+        idea_id INT,
         image_url VARCHAR(255),
         image_data LONGTEXT,
         status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT 'pending',
         error_message VARCHAR(255),
         used_reference_ids TEXT DEFAULT NULL,
+        generation_order INT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (title_id) REFERENCES titles(id) ON DELETE CASCADE,
-        FOREIGN KEY (idea_id) REFERENCES ideas(id) ON DELETE CASCADE
+        FOREIGN KEY (idea_id) REFERENCES ideas(id) ON DELETE CASCADE,
+        UNIQUE KEY title_order_idx (title_id, generation_order)
       )
     `);
 

@@ -11,52 +11,43 @@ async function generateIdeas(titleId, titleText, instructions, previousIdeas = [
     if (!titleId) {
       throw new Error('Title ID is required for idea generation');
     }
-    
+
     if (!titleText) {
       throw new Error('Title text is required for idea generation');
     }
-    
+
     // Get previous ideas for context
-    const previousIdeasSummary = previousIdeas.length > 0 
+    const previousIdeasSummary = previousIdeas.length > 0
       ? `Previous painting ideas: ${previousIdeas.map(idea => idea.summary).join('; ')}`
       : '';
-    
+
     if (!OPENROUTER_API_KEY) {
       throw new Error('OpenRouter API key is missing. Please check your .env file.');
     }
-    
+
+    // Create the prompt for the AI
+    const prompt = `Create a unique and creative painting idea for a piece titled "${titleText}".
+${instructions ? `\nCustom instructions: ${instructions}` : ''}
+${previousIdeasSummary ? `\n${previousIdeasSummary}` : ''}
+\nPlease make sure this idea is different from any previous ones.
+\nRespond in JSON format with two fields:
+- summary: A brief description of the painting idea (1-2 sentences)
+- fullPrompt: A detailed prompt for image generation (3-4 sentences)`;
+
+    // Call OpenRouter API
     const response = await axios.post(OPENROUTER_URL, {
-      model: 'google/gemini-2.5-pro-preview', // You can choose a different model
+      model: 'openai/gpt-4',
       messages: [
-        { role: 'system', content: 'You are a creative painting designer. Generate unique painting concepts that haven\'t been suggested before.' },
-        { role: 'user', content: `Create a painting concept for the title: "${titleText}".
-          ${instructions ? `Custom instructions: ${instructions}` : ''}
-          ${previousIdeasSummary}
-          Please generate a completely new and different painting idea that hasn't been suggested yet.`
+        {
+          role: 'system',
+          content: 'You are a creative art director specializing in generating unique painting ideas.'
+        },
+        {
+          role: 'user',
+          content: prompt
         }
       ],
-      tools: [{
-        type: 'function',
-        function: {
-          name: 'savePaintingIdea',
-          description: 'Save a painting idea',
-          parameters: {
-            type: 'object',
-            properties: {
-              summary: {
-                type: 'string',
-                description: 'A short summary of the painting idea (30-50 words)'
-              },
-              fullPrompt: {
-                type: 'string',
-                description: 'The full prompt to generate this painting image (100-200 words with detailed visual instructions)'
-              }
-            },
-            required: ['summary', 'fullPrompt']
-          }
-        }
-      }],
-      tool_choice: { type: 'function', function: { name: 'savePaintingIdea' } }
+      response_format: { type: 'json_object' }
     }, {
       headers: {
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
@@ -64,34 +55,28 @@ async function generateIdeas(titleId, titleText, instructions, previousIdeas = [
       }
     });
 
-    const toolCall = response.data.choices[0].message.tool_calls[0];
-    const ideaData = JSON.parse(toolCall.function.arguments);
-
-    if (!ideaData.summary || !ideaData.fullPrompt) {
-      throw new Error('Incomplete idea data received from AI');
+    // Parse the response
+    let ideaData;
+    try {
+      const content = response.data.choices[0].message.content;
+      ideaData = JSON.parse(content);
+    } catch (error) {
+      console.error('Error parsing OpenRouter response:', error);
+      throw new Error('Invalid response format from OpenRouter API');
     }
 
-    // Save to database
-    const params = [titleId, ideaData.summary, ideaData.fullPrompt];
-    // Validate parameters
-    if (params.some(p => p === undefined)) {
-      console.error('Attempted to execute query with undefined parameter:', { params });
-      throw new Error('Invalid query parameter detected');
-    }
-    
+    // Insert the idea into the database
     const [result] = await pool.execute(
       'INSERT INTO ideas (title_id, summary, full_prompt) VALUES (?, ?, ?)',
-      params
+      [titleId, ideaData.summary, ideaData.fullPrompt]
     );
 
-    const idea = {
+    return {
       id: result.insertId,
-      titleId,
       summary: ideaData.summary,
       fullPrompt: ideaData.fullPrompt
     };
 
-    return idea;
   } catch (error) {
     console.error('Error generating ideas:', error);
     throw error;

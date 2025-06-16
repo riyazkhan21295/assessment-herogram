@@ -123,6 +123,12 @@ export const getThumbnails = async (titleId) => {
   return apiInstance.get(`/paintings/${titleId}`);
 };
 
+// Retry a failed painting
+export const retryPainting = async (titleId, order) => {
+  const apiInstance = await ensureAPI();
+  return apiInstance.post(`/paintings/${titleId}/retry/${order}`);
+};
+
 // Initialize API when this module is imported
 initAPI();
 
